@@ -3,29 +3,36 @@ import whisper
 import torch
 import os
 from diffusers import StableDiffusionPipeline
+from typing import BinaryIO, Literal
 
-def get_device():
+def get_device() -> Literal['cuda', 'cpu']:
   return "cuda" if torch.cuda.is_available() else "cpu"
 
 def get_token() -> str:
   return os.environ.get("HUGGING_FACE_TOKEN") 
 
-def generate_images(prompt, scale, iterations, seed):
+def generate_images(prompt: str, scale: str, iterations: str, seed: str, num_images: str) -> list[str]:
   AUTH_TOKEN = get_token()
   device = get_device()
 
   pipe = StableDiffusionPipeline.from_pretrained("CompVis/stable-diffusion-v1-4", 
-                                                        revision="fp16", 
-                                                        torch_dtype=torch.float16, 
                                                         use_auth_token=AUTH_TOKEN)
 
   pipe.to(device)
   generator = torch.Generator(device).manual_seed(seed)
+  prompt = [prompt] * num_images
   images = pipe(prompt, num_inference_steps = iterations, guidance_scale = scale, generator=generator).images
-  return images
+  
+  output_files_names = []
+  for id, image in enumerate(images):
+    filename = f"output{id}.png"
+    image.save(filename)
+    output_files_names.append(filename)
+
+  return output_files_names
 
 
-def transcribe_audio(model_selected,audio_input):
+def transcribe_audio(model_selected :str, audio_input: BinaryIO) -> tuple[str, str, str, str]:
 
   model = whisper.load_model(model_selected)
   audio_input = whisper.load_audio(audio_input)
@@ -67,7 +74,7 @@ with gr.Blocks() as demo:
     with gr.Tab("Record Prompt"):
       with gr.Row():
         recorded_audio_input = gr.Audio(source="microphone", type="filepath", label="Record your prompt to feed to Stable Diffusion!")
-        audio_transcribe_btn = gr.Button("Transcribe")
+        audio_transcribe_btn = gr.Button("Launch Whisper")
       with gr.Row():
         transcribed_output_box = gr.TextArea(interactive=False, label="Transcription", placeholder="Transcription will appear here")
         translated_output_box = gr.TextArea(interactive=True, label="Translated prompt")
@@ -76,14 +83,16 @@ with gr.Blocks() as demo:
       with gr.Row():
         prompt_box = gr.TextArea(interactive=False, label="Prompt")
       with gr.Row():
-        guidance_slider = gr.Slider(2, 15, value = 7, label = 'Guidence Scale'),
-        iterations_slider = gr.Slider(10, 100, value = 25, step = 1, label = 'Number of Iterations'),
+        guidance_slider = gr.Slider(2, 15, value = 7, label = 'Guidance Scale', interactive=True)
+        iterations_slider = gr.Slider(10, 100, value = 25, step = 1, label = 'Number of Iterations', interactive=True)
         seed_slider = gr.Slider(
                 label = "Seed",
                 minimum = 0,
                 maximum = 2147483647,
                 step = 1,
-                randomize = True)
+                randomize = True,
+                interactive=True),
+        num_images_slider = gr.Slider(2, 8, value= 2, label = "Number of Images Asked", interactive=True)
       with gr.Row():
         images_gallery = gr.Gallery(label="Generated Images").style(grid=[2])
       with gr.Row():
@@ -100,6 +109,16 @@ with gr.Blocks() as demo:
                                         prompt_box
                                       ]
                               )
+    generate_image_btn.click(generate_images,
+                              inputs=[
+                                    prompt_box,
+                                    guidance_slider,
+                                    iterations_slider,
+                                    seed_slider,
+                                    num_images_slider
+                              ],
 
+                              outputs=images_gallery
+    )
 
 demo.launch(enable_queue=True, debug=True)
