@@ -91,7 +91,7 @@ with gr.Blocks() as demo:
                 maximum = 2147483647,
                 step = 1,
                 randomize = True,
-                interactive=True),
+                interactive=True)
         num_images_slider = gr.Slider(2, 8, value= 2, label = "Number of Images Asked", interactive=True)
       with gr.Row():
         images_gallery = gr.Gallery(label="Generated Images").style(grid=[2])
