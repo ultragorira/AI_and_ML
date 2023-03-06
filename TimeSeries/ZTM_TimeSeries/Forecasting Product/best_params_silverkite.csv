@@ -1,0 +1,4 @@
+,"[('estimator__growth_term', 'quadratic'), ('estimator__fit_algorithm_dict', {'fit_algorithm': 'linear'})]"
+mean_test_RMSE,47.8
+param_estimator__fit_algorithm_dict,{'fit_algorithm': 'linear'}
+param_estimator__growth_term,quadratic

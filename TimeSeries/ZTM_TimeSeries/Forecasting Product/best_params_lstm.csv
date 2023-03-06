@@ -1,0 +1,9 @@
+,14
+dropout,0.2
+hidden_dim,30.0
+input_chunk_length,20.0
+lr,0.003
+n_epochs,20.0
+n_rnn_layers,4.0
+training_length,20.0
+rmse,83.37032719759705
