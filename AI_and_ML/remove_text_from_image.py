@@ -19,7 +19,8 @@ def read_image(image_path: str) -> Tuple[List, np.ndarray, np.ndarray]:
 
     return predictions, mask, img
 
-def inpaint_text(predictions: List, mask: np.ndarray, original_image: np.ndarray) -> np.ndarray:
+def inpaint(predictions: List, mask: np.ndarray, original_image: np.ndarray) -> np.ndarray:
+    """Function to inpaint text in an image"""
 
     for box in predictions[0]:
         x1, y1 = box[1][0]
@@ -49,7 +50,7 @@ def main() -> None:
 
     args = parse_args()
     predictions, mask, original_image = read_image(args.image_path)
-    processed_image = inpaint_text(predictions, mask, original_image)
+    processed_image = inpaint(predictions, mask, original_image)
     cv2.imwrite('processed.jpg', cv2.cvtColor(processed_image, cv2.COLOR_BGR2RGB))
 
     print("Done!")
