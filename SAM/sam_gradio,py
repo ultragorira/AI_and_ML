@@ -24,22 +24,33 @@ with gr.Blocks() as ui:
     in_image = gr.Image(label="Input Image")
     mask_image = gr.Image(label="SAM Mask")
 
-    def create_mask(image, event: gr.SelectData):
+    def create_mask(image: np.ndarray, event: gr.SelectData) -> Image:
+        """Function to create mask with SAM"""
+        selected_pixels.append(event.index)
+        sam_predictor.set_image(image)
+        point_coords = np.array(selected_pixels)
+        point_labels = np.ones(point_coords.shape[0])
+        mask, _, _ = sam_predictor.predict(
+            point_coords = point_coords,
+            point_labels = point_labels,
+            multimask_output=False
+        )
+        mask = Image.fromarray(mask[0, :, :])
+        return mask
+    
+    def reset_annotation() -> None:
+        """Reset annotations done so far"""
+        selected_pixels = [] 
 
-      selected_pixels.append(event.index)
-      sam_predictor.set_image(image)
-      point_coords = np.array(selected_pixels)
-      point_labels = np.ones(point_coords.shape[0])
-      mask, _, _ = sam_predictor.predict(
-          point_coords = point_coords,
-          point_labels = point_labels,
-          multimask_output=False
-      )
-      mask = Image.fromarray(mask[0, :, :])
-      return mask
-
+    with gr.Row():
+        reset_selected_pixels = gr.Button(value="Reset annotations")
 
     in_image.select(create_mask, [in_image], [mask_image])
+    reset_selected_pixels.click(reset_annotation)
+
+
+    
+
 
 
 if __name__ == "__main__":
