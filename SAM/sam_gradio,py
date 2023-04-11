@@ -1,0 +1,46 @@
+import gradio as gr
+import numpy as np
+from PIL import Image
+from segment_anything import sam_model_registry, SamPredictor
+    
+
+def load_SAM(sam_checkpoint: str,
+             model_type: str,
+             device: str) -> SamPredictor:
+    """Load SAM Predictor"""
+
+    sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+    sam.to(device=device)
+    predictor = SamPredictor(sam)
+
+    return predictor
+
+
+sam_predictor = load_SAM("sam_vit_h_4b8939.pth", "vit_h", "cuda")
+
+selected_pixels = []
+
+with gr.Blocks() as ui:
+    in_image = gr.Image(label="Input Image")
+    mask_image = gr.Image(label="SAM Mask")
+
+    def create_mask(image, event: gr.SelectData):
+
+      selected_pixels.append(event.index)
+      sam_predictor.set_image(image)
+      point_coords = np.array(selected_pixels)
+      point_labels = np.ones(point_coords.shape[0])
+      mask, _, _ = sam_predictor.predict(
+          point_coords = point_coords,
+          point_labels = point_labels,
+          multimask_output=False
+      )
+      mask = Image.fromarray(mask[0, :, :])
+      return mask
+
+
+    in_image.select(create_mask, [in_image], [mask_image])
+
+
+if __name__ == "__main__":
+    ui.launch()
