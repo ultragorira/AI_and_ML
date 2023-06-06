@@ -3,11 +3,10 @@ from datetime import datetime
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores.faiss import FAISS
-from langchain.chains import VectorDBQAWithSourcesChain
+from langchain.chains import RetrievalQAWithSourcesChain
 from langchain.llms import OpenAI
-import openai
-import faiss
 import whisper
+import gradio as gr
 
 URL = "https://www.youtube.com/watch?v=f7jBigoHaUg"
 
@@ -33,7 +32,7 @@ def store_segments(segments):
     return texts, start_times
 
 
-def predict():
+def download_and_create_embeddings(URL):
 
     video = pytube.YouTube(URL, use_oauth=True, allow_oauth_cache=True)
     video.streams.get_highest_resolution().filesize
@@ -48,14 +47,14 @@ def predict():
     metadatas, docs = create_embeddings(texts, start_times)
     embeddings = OpenAIEmbeddings()
     store = FAISS.from_texts(docs, embeddings, metadatas=metadatas)
-    faiss.write_index(store.index, "docs.index")
 
+    chain = RetrievalQAWithSourcesChain.from_chain_type(OpenAI(temperature=0.0), 
+                                                        chain_type="stuff", 
+                                                        retriever=store.as_retriever())
 
-    chain = VectorDBQAWithSourcesChain.from_llm(llm=OpenAI(OpenAI(temperature=0), vectorstore="docs.index")
+    result = chain({"question": "Which was the third news?"})
 
-    result = chain({"question": "What is the video about?"})
-
-    return {"result": result}
+    print(result)
 
 
 def create_embeddings(texts, start_times):
@@ -68,5 +67,46 @@ def create_embeddings(texts, start_times):
         metadatas.extend([{"source": start_times[i]}] * len(splits))
     return metadatas, docs
 
-if __name__ == "__main__":
-    predict()
+
+def add_text(history, text):
+    history = history + [(text, None)]
+    return history, gr.update(value="", interactive=False)
+
+
+def bot(history):
+    response = "**That's cool!**"
+    history[-1][1] = response
+    return history
+
+
+with gr.Blocks() as demo:
+    chatbot = gr.Chatbot([], elem_id="YouTube Video Chatbot").style(height=750)
+
+    with gr.Row():
+        with gr.Column(scale=0.85):
+            youtube_url_txt = gr.Textbox(
+                show_label=False,
+                placeholder="Enter YouTube URL to scan",
+            ).style(container=False)
+        with gr.Column(scale=0.15, min_width=0):
+            btn = gr.Button("Scan")
+
+    with gr.Row():
+        with gr.Column():
+            chat_txt = gr.Textbox(
+                show_label=False,
+                placeholder="Ask your question",
+            ).style(container=False)
+        
+    
+    btn.click(fn = download_and_create_embeddings, 
+              inputs = youtube_url_txt)
+
+    txt_msg = chat_txt.submit(add_text, [chatbot, chat_txt], [chatbot, chat_txt], queue=False).then(
+        bot, chatbot, chatbot
+    )
+    txt_msg.then(lambda: gr.update(interactive=True), None, [chat_txt], queue=False)
+    
+
+demo.launch()
+
