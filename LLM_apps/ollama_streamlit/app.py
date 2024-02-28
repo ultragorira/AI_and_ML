@@ -8,11 +8,14 @@ st.set_page_config(
         layout="wide",
     )
 
+
+
 def main() -> None:
     """
     Main function to run the Ollama chat application.
     """
     st.title("Local LLMs")
+    st.image('ollama.png', width = 300)
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
